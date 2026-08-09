@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>TNG Mini App</title>
+  <title>TNG Pokrovka</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
@@ -97,12 +97,34 @@
     .modal-title { color: var(--gold); font-size: 16px; margin-bottom: 12px; }
     .modal-input { width: 100%; background: #121212; border: 1px solid rgba(212,175,55,0.4); border-radius: 4px; padding: 10px; color: #fff; margin-bottom: 10px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+    /* Бейдж медкнижки */
+    .medbook-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-top: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .medbook-badge.active {
+      background: rgba(212, 175, 55, 0.15);
+      border-color: var(--gold);
+      color: var(--gold);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>TNG mini-app</h1>
+    <h1>TNG Pokrovka</h1>
   </header>
 
   <div class="container">
@@ -123,7 +145,21 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwUIxLdjuh_Kw2S2SdqoGYugsAlSmW-Kkb2fnw0R_4ufhGPKoA2o6C_AwIcQ8EeM_W2/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbze3kNByK0vALwV07VQrCzLUQy9k6bZv0zGD9tQsKF7aRxFIQd7JmLPeMpNAcUQBpwS/exec";
+
+  async function toggleMedBook(name, badgeEl) {
+    event.stopPropagation(); // Чтобы карточка не сворачивалась при клике
+  
+    const isActive = badgeEl.classList.toggle('active');
+    const statusText = badgeEl.querySelector('.status-text');
+    statusText.textContent = isActive ? 'Есть' : 'Отсутствует';
+
+    // Отправляем новый статус в бэкенд
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'toggleMedBook', name: name, value: isActive })
+    });
+  }
     
     // Telegram Web App
     const tg = window.Telegram?.WebApp;
@@ -167,44 +203,53 @@
         container.innerHTML = `
           <button class="delete-btn-behind" onclick="confirmDelete('${intern.name}')">🗑️</button>
           <div class="card" id="card-${i}">
-            <div class="card-header" onclick="toggleCard(${i})">
-              <a href="${intern.username ? 'https://t.me/' + intern.username : '#'}" target="_blank" class="intern-name" onclick="event.stopPropagation()">${intern.name} ${intern.username ? '(' + intern.username + ')' : ''}</a>
-              <span class="arrow">▼</span>
-            </div>
-            <div class="card-body">
-              ${BLOCKS.map((block, bIdx) => {
-                const bNum = bIdx + 1;
-                const isChecked = intern.checkboxes['block_' + bNum];
-                const comments = intern.comments['block_' + bNum] || [];
-                return `
-                  <div class="block-section">
-                    <div class="block-title">${block.title}</div>
-                    ${block.tasks.map((taskText, tIdx) => `
-                      <label class="task-item" onclick="toggleCheckbox('${intern.name}', ${bNum}, this)">
-                        <input type="checkbox" ${isChecked ? 'checked' : ''}>
-                        <div class="custom-checkbox"></div>
-                        <span class="task-text">${taskText}</span>
-                      </label>
-                    `).join('')}
-                    <div class="comments-section">
-                      <div class="comments-list">
-                        ${comments.map(c => `<div class="comment-item"><span class="comment-author">[${c.time}] ${c.author}:</span> ${c.text}</div>`).join('')}
-                      </div>
-                      <div class="comment-input-group">
-                        <input type="text" class="comment-input" placeholder="Комментарий..." id="input-${i}-${bNum}">
-                        <button class="comment-btn" onclick="sendComment('${intern.name}', ${bNum}, ${i})">➤</button>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
+          <div class="card-header" onclick="toggleCard(${i})">
+          <div>
+            <a href="${intern.username ? 'https://t.me/' + intern.username : '#'}" target="_blank" class="intern-name" onclick="event.stopPropagation()">
+              ${intern.name} ${intern.username ? '(' + intern.username + ')' : ''}
+            </a>
+            <div style="margin-top: 4px;">
+              <div class="medbook-badge ${intern.hasMedBook ? 'active' : ''}" onclick="toggleMedBook(event, '${intern.name}', this)">
+                🩺 Медкнижка: <span class="status-text">${intern.hasMedBook ? 'Есть' : 'Отсутствует'}</span>
+              </div>
             </div>
           </div>
-        `;
-        listEl.appendChild(container);
-        setupSwipe(`card-${i}`);
-      });
-    }
+          <span class="arrow">▼</span>
+        </div>
+        <div class="card-body">
+          ${BLOCKS.map((block, bIdx) => {
+            const bNum = bIdx + 1;
+            const isChecked = intern.checkboxes['block_' + bNum];
+            const comments = intern.comments['block_' + bNum] || [];
+            return `
+              <div class="block-section">
+                <div class="block-title">${block.title}</div>
+                ${block.tasks.map((taskText, tIdx) => `
+                  <label class="task-item" onclick="toggleCheckbox('${intern.name}', ${bNum}, this)">
+                    <input type="checkbox" ${isChecked ? 'checked' : ''}>
+                    <div class="custom-checkbox"></div>
+                    <span class="task-text">${taskText}</span>
+                  </label>
+                `).join('')}
+                <div class="comments-section">
+                  <div class="comments-list">
+                    ${comments.map(c => `<div class="comment-item"><span class="comment-author">[${c.time}] ${c.author}:</span> ${c.text}</div>`).join('')}
+                  </div>
+                  <div class="comment-input-group">
+                    <input type="text" class="comment-input" placeholder="Комментарий..." id="input-${i}-${bNum}">
+                    <button class="comment-btn" onclick="sendComment('${intern.name}', ${bNum}, ${i})">➤</button>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+    listEl.appendChild(container);
+    setupSwipe(`card-${i}`);
+  });
+}
 
     function toggleCard(idx) {
       document.getElementById(`card-${idx}`).classList.toggle('open');
@@ -276,6 +321,10 @@
         if (diff < -50) el.style.transform = `translateX(-80px)`;
         else el.style.transform = `translateX(0px)`;
       });
+    }
+
+    async function toggleMedBook(e, name, badgeEl) {
+      e.stopPropagation(); 
     }
 
     loadData();
