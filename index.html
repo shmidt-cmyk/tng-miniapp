@@ -140,8 +140,8 @@
   </div>
 
   <script>
-    // Обновленный URL веб-приложения Apps Script
-    const API_URL = "https://script.google.com/macros/s/AKfycbwG8Rg8dPFzlSLgDj-cqJQvVT6XymLlIdr6U9iOY0KNRRC9A354PW_9CRFbvcuAJKk/exec";
+    // НОВАЯ ССЫЛКА ЗДЕСЬ
+    const API_URL = "https://script.google.com/macros/s/AKfycbzjlvORTHZ5HgbUjuzqv8ehqINkYsuag8fdzlahlySb8iX-0KVX5XWEDyQCPs-KlHbL/exec";
 
     // Telegram Web App
     const tg = window.Telegram?.WebApp;
@@ -165,7 +165,7 @@
 
     async function loadData() {
       try {
-        const res = await fetch(API_URL);
+        const res = await fetch(API_URL + "?t=" + Date.now());
         const json = await res.json();
         internsData = json.interns || [];
         renderInterns();
@@ -178,9 +178,17 @@
       const listEl = document.getElementById('interns-list');
       listEl.innerHTML = '';
 
+      if (!internsData || internsData.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center; color: var(--text-muted); padding: 20px;">Стажеры не найдены</div>';
+        return;
+      }
+
       internsData.forEach((intern, i) => {
         const container = document.createElement('div');
         container.className = 'swipe-container';
+
+        const checkboxes = intern.checkboxes || {};
+        const commentsObj = intern.comments || {};
 
         container.innerHTML = `
           <button class="delete-btn-behind" onclick="confirmDelete('${intern.name}')">🗑️</button>
@@ -201,8 +209,10 @@
             <div class="card-body">
               ${BLOCKS.map((block, bIdx) => {
                 const bNum = bIdx + 1;
-                const isChecked = intern.checkboxes['block_' + bNum];
-                const comments = intern.comments['block_' + bNum] || [];
+                const isChecked = checkboxes['block_' + bNum];
+                const rawList = commentsObj['block_' + bNum];
+                const comments = Array.isArray(rawList) ? rawList : [];
+
                 return `
                   <div class="block-section">
                     <div class="block-title">${block.title}</div>
@@ -215,7 +225,7 @@
                     `).join('')}
                     <div class="comments-section">
                       <div class="comments-list">
-                        ${comments.map(c => `<div class="comment-item"><span class="comment-author">[${c.time}] ${c.author}:</span> ${c.text}</div>`).join('')}
+                        ${comments.map(c => `<div class="comment-item"><span class="comment-author">[${c.time || ''}] ${c.author || 'Менеджер'}:</span> ${c.text || ''}</div>`).join('')}
                       </div>
                       <div class="comment-input-group">
                         <input type="text" class="comment-input" placeholder="Комментарий..." id="input-${i}-${bNum}">
@@ -280,11 +290,16 @@
     function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
     
     async function submitAddIntern() {
-      const name = document.getElementById('newInternName').value.trim();
-      const username = document.getElementById('newInternUsername').value.trim();
+      const nameInput = document.getElementById('newInternName');
+      const usernameInput = document.getElementById('newInternUsername');
+      const name = nameInput.value.trim();
+      const username = usernameInput.value.trim();
       if (!name) return;
 
       closeAddModal();
+      nameInput.value = '';
+      usernameInput.value = '';
+
       await fetch(API_URL, {
         method: 'POST',
         body: JSON.stringify({ action: 'addIntern', name, username })
