@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>TNG Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --card-bg: #1e1e1e;
+      --gold: #d4af37;
+      --gold-hover: #f3e5ab;
+      --text-color: #e0e0e0;
+      --text-muted: #a0a0a0;
+      --danger: #e63946;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-color); padding-bottom: 30px; -webkit-tap-highlight-color: transparent; }
+
+    /* Header */
+    header {
+      position: sticky; top: 0; background-color: rgba(18, 18, 18, 0.95);
+      backdrop-filter: blur(10px); border-bottom: 1px solid var(--gold);
+      padding: 15px; text-align: center; z-index: 100;
+    }
+    header h1 { color: var(--gold); font-size: 18px; letter-spacing: 1px; text-transform: uppercase; }
+
+    .container { max-width: 600px; margin: 15px auto; padding: 0 10px; }
+
+    /* Intern Card & Swipe Container */
+    .swipe-container { position: relative; overflow: hidden; border-radius: 8px; margin-bottom: 12px; }
+    .delete-btn-behind {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+      background-color: var(--danger); color: white; display: flex;
+      align-items: center; justify-content: center; font-size: 20px; border: none;
+    }
+
+    .card {
+      background-color: var(--card-bg); border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: 8px; transition: transform 0.2s ease, border-color 0.2s ease;
+      position: relative; z-index: 2;
+    }
+    .card.open { border-color: var(--gold); }
+
+    .card-header {
+      padding: 16px; display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; background-color: var(--card-bg); border-radius: 8px;
+    }
+    .intern-name { font-size: 16px; font-weight: 600; color: var(--text-color); text-decoration: none; }
+    .card.open .intern-name { color: var(--gold); }
+    .arrow { color: var(--gold); transition: transform 0.3s ease; }
+    .card.open .arrow { transform: rotate(180deg); }
+
+    .card-body { display: none; padding: 0 16px 16px 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .card.open .card-body { display: block; }
+
+    /* Blocks & Checkboxes */
+    .block-section { margin-top: 15px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; }
+    .block-title { font-size: 14px; color: var(--gold); margin-bottom: 10px; font-weight: 600; }
+
+    .task-item { display: flex; align-items: center; margin-bottom: 8px; cursor: pointer; }
+    .task-item input { display: none; }
+    .custom-checkbox {
+      width: 18px; height: 18px; border: 1px solid var(--gold); border-radius: 4px;
+      margin-right: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .task-item input:checked + .custom-checkbox { background-color: var(--gold); }
+    .task-item input:checked + .custom-checkbox::after { content: '✓'; color: #000; font-size: 12px; font-weight: bold; }
+    .task-text { font-size: 13px; color: var(--text-color); }
+
+    /* Comments Section */
+    .comments-section { margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(212, 175, 55, 0.2); }
+    .comments-list { max-height: 120px; overflow-y: auto; margin-bottom: 8px; }
+    .comment-item { font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 4px; margin-bottom: 4px; }
+    .comment-author { color: var(--gold); font-weight: bold; }
+
+    .comment-input-group { display: flex; gap: 6px; }
+    .comment-input {
+      flex: 1; background: #121212; border: 1px solid rgba(212, 175, 55, 0.4);
+      border-radius: 4px; padding: 6px 10px; color: #fff; font-size: 12px; outline: none;
+    }
+    .comment-btn {
+      background: var(--gold); color: #000; border: none; padding: 6px 12px;
+      border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;
+    }
+
+    /* Add Intern Button & Modal */
+    .add-btn {
+      width: 100%; background: transparent; border: 1px solid var(--gold); color: var(--gold);
+      padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; }
+    .modal-content { background: var(--card-bg); border: 1px solid var(--gold); padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; }
+    .modal-title { color: var(--gold); font-size: 16px; margin-bottom: 12px; }
+    .modal-input { width: 100%; background: #121212; border: 1px solid rgba(212,175,55,0.4); border-radius: 4px; padding: 10px; color: #fff; margin-bottom: 10px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>TNG mini-app</h1>
+  </header>
+
+  <div class="container">
+    <div id="interns-list"></div>
+    <button class="add-btn" onclick="openAddModal()">+ Добавить стажера</button>
+  </div>
+
+  <div class="modal" id="addModal">
+    <div class="modal-content">
+      <div class="modal-title">Новый стажер</div>
+      <input type="text" id="newInternName" class="modal-input" placeholder="ФИО Стажера">
+      <input type="text" id="newInternUsername" class="modal-input" placeholder="Username Telegram (без @)">
+      <div class="modal-actions">
+        <button class="comment-btn" style="background:#444; color:#fff;" onclick="closeAddModal()">Отмена</button>
+        <button class="comment-btn" onclick="submitAddIntern()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwUIxLdjuh_Kw2S2SdqoGYugsAlSmW-Kkb2fnw0R_4ufhGPKoA2o6C_AwIcQ8EeM_W2/exec";
+    
+    // Telegram Web App
+    const tg = window.Telegram?.WebApp;
+    if (tg) tg.expand();
+    const currentUser = tg?.initDataUnsafe?.user ? `${tg.initDataUnsafe.user.first_name} (${tg.initDataUnsafe.user.username || 'Менеджер'})` : 'Менеджер';
+
+    // 9 фиксированных блоков
+    const BLOCKS = [
+      { title: "Блок 1: Введение", tasks: ["Помощь в открытии и разбор чеков", "Разбор посуды кухни и бара", "Смена 4–6 часов"] },
+      { title: "Блок 2: Сервис", tasks: ["Стандарты сервировки", "Изучение меню кухни", "Работа с кассой"] },
+      { title: "Блок 3: Бар", tasks: ["Технологические карты напитков", "Инвентаризация бара", "Приготовление классических коктейлей"] },
+      { title: "Блок 4: Обслуживание", tasks: ["Этикет общения с гостями", "Сдача столов", "Работа с возражениями"] },
+      { title: "Блок 5: Касса & Учет", tasks: ["Закрытие смены", "Инкассация", "Отчетность"] },
+      { title: "Блок 6: Стандарты TNG", tasks: ["История бренда TNG", "Корпоративная культура", "Внутренний распорядок"] },
+      { title: "Блок 7: Аттестация 1", tasks: ["Тест по меню", "Практический экзамен на баре"] },
+      { title: "Блок 8: Аттестация 2", tasks: ["Теневая смена", "Самостоятельная смена с наставником"] },
+      { title: "Блок 9: Финал", tasks: ["Финальное собеседование", "Выход в основной штат"] }
+    ];
+
+    let internsData = [];
+
+    async function loadData() {
+      try {
+        const res = await fetch(API_URL);
+        const json = await res.json();
+        internsData = json.interns || [];
+        renderInterns();
+      } catch(err) {
+        console.error("Ошибка загрузки:", err);
+      }
+    }
+
+    function renderInterns() {
+      const listEl = document.getElementById('interns-list');
+      listEl.innerHTML = '';
+
+      internsData.forEach((intern, i) => {
+        const container = document.createElement('div');
+        container.className = 'swipe-container';
+
+        container.innerHTML = `
+          <button class="delete-btn-behind" onclick="confirmDelete('${intern.name}')">🗑️</button>
+          <div class="card" id="card-${i}">
+            <div class="card-header" onclick="toggleCard(${i})">
+              <a href="${intern.username ? 'https://t.me/' + intern.username : '#'}" target="_blank" class="intern-name" onclick="event.stopPropagation()">${intern.name} ${intern.username ? '(' + intern.username + ')' : ''}</a>
+              <span class="arrow">▼</span>
+            </div>
+            <div class="card-body">
+              ${BLOCKS.map((block, bIdx) => {
+                const bNum = bIdx + 1;
+                const isChecked = intern.checkboxes['block_' + bNum];
+                const comments = intern.comments['block_' + bNum] || [];
+                return `
+                  <div class="block-section">
+                    <div class="block-title">${block.title}</div>
+                    ${block.tasks.map((taskText, tIdx) => `
+                      <label class="task-item" onclick="toggleCheckbox('${intern.name}', ${bNum}, this)">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''}>
+                        <div class="custom-checkbox"></div>
+                        <span class="task-text">${taskText}</span>
+                      </label>
+                    `).join('')}
+                    <div class="comments-section">
+                      <div class="comments-list">
+                        ${comments.map(c => `<div class="comment-item"><span class="comment-author">[${c.time}] ${c.author}:</span> ${c.text}</div>`).join('')}
+                      </div>
+                      <div class="comment-input-group">
+                        <input type="text" class="comment-input" placeholder="Комментарий..." id="input-${i}-${bNum}">
+                        <button class="comment-btn" onclick="sendComment('${intern.name}', ${bNum}, ${i})">➤</button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+        listEl.appendChild(container);
+        setupSwipe(`card-${i}`);
+      });
+    }
+
+    function toggleCard(idx) {
+      document.getElementById(`card-${idx}`).classList.toggle('open');
+    }
+
+    async function toggleCheckbox(name, blockIndex, labelEl) {
+      const input = labelEl.querySelector('input');
+      const val = input.checked;
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'toggleCheckbox', name, blockIndex, value: val })
+      });
+    }
+
+    async function sendComment(name, blockIndex, cardIdx) {
+      const input = document.getElementById(`input-${cardIdx}-${blockIndex}`);
+      const text = input.value.trim();
+      if (!text) return;
+
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+      const commentObj = { author: currentUser, time: timeStr, text: text };
+
+      input.value = '';
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'addComment', name, blockIndex, comment: commentObj })
+      });
+      loadData();
+    }
+
+    // Modal logic
+    function openAddModal() { document.getElementById('addModal').style.display = 'flex'; }
+    function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
+    async function submitAddIntern() {
+      const name = document.getElementById('newInternName').value.trim();
+      const username = document.getElementById('newInternUsername').value.trim();
+      if (!name) return;
+
+      closeAddModal();
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'addIntern', name, username })
+      });
+      loadData();
+    }
+
+    async function confirmDelete(name) {
+      if (confirm(`Удалить стажера ${name} и весь прогресс?`)) {
+        await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'deleteIntern', name })
+        });
+        loadData();
+      }
+    }
+
+    // Swipe mechanic
+    function setupSwipe(id) {
+      const el = document.getElementById(id);
+      let startX = 0;
+      el.addEventListener('touchstart', e => { startX = e.touches[0].clientX; });
+      el.addEventListener('touchmove', e => {
+        let diff = e.touches[0].clientX - startX;
+        if (diff < 0 && diff > -100) el.style.transform = `translateX(${diff}px)`;
+      });
+      el.addEventListener('touchend', e => {
+        let diff = e.changedTouches[0].clientX - startX;
+        if (diff < -50) el.style.transform = `translateX(-80px)`;
+        else el.style.transform = `translateX(0px)`;
+      });
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
