@@ -140,8 +140,8 @@
   </div>
 
   <script>
-    // Обновленный URL веб-приложения Apps Script
-    const scriptUrl = 'https://script.google.com/macros/s/AKfycbz_937-0mAvf5VNpqS0UJC3HKhBLLxuTOkq2bXV-LphOhpRAHlCh2uO-C6_UnBHsngh/exec;
+    // ИСПРАВЛЕННАЯ ССЫЛКА (Добавлена закрывающая кавычка и единое имя API_URL)
+    const API_URL = 'https://script.google.com/macros/s/AKfycbz_937-0mAvf5VNpqS0UJC3HKhBLLxuTOkq2bXV-LphOhpRAHlCh2uO-C6_UnBHsngh/exec';
 
     // Telegram Web App
     const tg = window.Telegram?.WebApp;
@@ -165,7 +165,8 @@
 
     async function loadData() {
       try {
-        const res = await fetch(API_URL);
+        // Добавлен сброс кэша (?t=время), чтобы всегда грузились свежие данные
+        const res = await fetch(API_URL + "?t=" + new Date().getTime());
         const json = await res.json();
         internsData = json.interns || [];
         renderInterns();
@@ -177,6 +178,11 @@
     function renderInterns() {
       const listEl = document.getElementById('interns-list');
       listEl.innerHTML = '';
+
+      if (internsData.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center; color:#a0a0a0; margin-top: 20px;">Нет стажеров в базе</p>';
+        return;
+      }
 
       internsData.forEach((intern, i) => {
         const container = document.createElement('div');
