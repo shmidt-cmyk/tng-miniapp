@@ -147,7 +147,18 @@
     if (tg) tg.expand();
     const currentUser = tg?.initDataUnsafe?.user ? `${tg.initDataUnsafe.user.first_name} (${tg.initDataUnsafe.user.username || 'Менеджер'})` : 'Менеджер';
 
-    // Новые 9 блоков из ТЗ
+    // Вспомогательная функция защиты от XSS
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // 9 блоков из ТЗ
     const BLOCKS = [
       { title: "Блок 1", tasks: ["Помощь в открытии и разбор чек-листа открытия, нумерация столов", "Разбор посуды кухни и бара. Знакомство с чатом по обучению", "Работа в зале и разбор всех станций", "Смена 4-6 часов", "Домашнее задание: выучить нумерацию, посуду, чек-листы"] },
       { title: "Блок 2", tasks: ["Проверка знаний первого блока", "Стандарты сервировки и обслуживания. Типы гостей", "Алгоритм действий. Знакомство с Restoplace", "Практика встречи и общения с гостями", "Смена 6 часов, разбор меню кухни", "Чек-лист закрытия стола", "Домашнее задание: алгоритм обслуживания, сервировка, выход из конфликтов"] },
@@ -187,15 +198,15 @@
         container.className = 'swipe-container';
 
         container.innerHTML = `
-          <button class="delete-btn-behind" onclick="confirmDelete('${intern.name}')">🗑️</button>
+          <button class="delete-btn-behind" onclick="confirmDelete('${escapeHtml(intern.name)}')">🗑️</button>
           <div class="card" id="card-${i}">
             <div class="card-header" onclick="toggleCard(${i})">
               <div>
                 <a href="${intern.username ? 'https://t.me/' + intern.username : '#'}" target="_blank" class="intern-name" onclick="event.stopPropagation()">
-                  ${intern.name} ${intern.username ? '(' + intern.username + ')' : ''}
+                  ${escapeHtml(intern.name)} ${intern.username ? '(' + escapeHtml(intern.username) + ')' : ''}
                 </a>
                 <div style="margin-top: 4px;">
-                  <div class="medbook-badge ${intern.hasMedBook ? 'active' : ''}" onclick="toggleMedBook(event, '${intern.name}', this)">
+                  <div class="medbook-badge ${intern.hasMedBook ? 'active' : ''}" onclick="toggleMedBook(event, '${escapeHtml(intern.name)}', this)">
                     🩺 Медкнижка: <span class="status-text">${intern.hasMedBook ? 'Есть' : 'Отсутствует'}</span>
                   </div>
                 </div>
@@ -205,11 +216,17 @@
             <div class="card-body">
               ${BLOCKS.map((block, bIdx) => {
                 const bNum = bIdx + 1;
-                // Получаем массив состояний галочек
-                const blockTasksState = (intern.checkboxes && Array.isArray(intern.checkboxes['block_' + bNum])) 
-                  ? intern.checkboxes['block_' + bNum] 
-                  : [];
-                const comments = intern.comments['block_' + bNum] || [];
+                
+                // Получаем состояние галочек с поддержкой старых данных (true)
+                const rawState = intern.checkboxes ? intern.checkboxes['block_' + bNum] : [];
+                let blockTasksState = [];
+                if (rawState === true) {
+                  blockTasksState = new Array(block.tasks.length).fill(true);
+                } else if (Array.isArray(rawState)) {
+                  blockTasksState = rawState;
+                }
+
+                const comments = intern.comments ? (intern.comments['block_' + bNum] || []) : [];
                 
                 return `
                   <div class="block-section">
@@ -218,19 +235,19 @@
                       const isChecked = !!blockTasksState[tIdx];
                       return `
                         <label class="task-item">
-                          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleTask('${intern.name}', ${bNum}, ${tIdx}, this.checked)">
+                          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleTask('${escapeHtml(intern.name)}', ${bNum}, ${tIdx}, this.checked)">
                           <div class="custom-checkbox"></div>
-                          <span class="task-text">${taskText}</span>
+                          <span class="task-text">${escapeHtml(taskText)}</span>
                         </label>
                       `;
                     }).join('')}
                     <div class="comments-section">
                       <div class="comments-list">
-                        ${comments.map(c => `<div class="comment-item"><span class="comment-author">[${c.time}] ${c.author}:</span> ${c.text}</div>`).join('')}
+                        ${comments.map(c => `<div class="comment-item"><span class="comment-author">[${escapeHtml(c.time)}] ${escapeHtml(c.author)}:</span> ${escapeHtml(c.text)}</div>`).join('')}
                       </div>
                       <div class="comment-input-group">
                         <input type="text" class="comment-input" placeholder="Комментарий..." id="input-${i}-${bNum}">
-                        <button class="comment-btn" onclick="sendComment('${intern.name}', ${bNum}, ${i})">➤</button>
+                        <button class="comment-btn" onclick="sendComment('${escapeHtml(intern.name)}', ${bNum}, ${i})">➤</button>
                       </div>
                     </div>
                   </div>
@@ -248,7 +265,6 @@
       document.getElementById(`card-${idx}`).classList.toggle('open');
     }
 
-    // Новая функция сохранения каждого таска отдельно
     async function toggleTask(name, blockIndex, taskIndex, isChecked) {
       const intern = internsData.find(i => i.name === name);
       if (!intern) return;
@@ -257,6 +273,11 @@
 
       const totalTasks = BLOCKS[blockIndex - 1].tasks.length;
       let blockTasks = intern.checkboxes['block_' + blockIndex];
+
+      // Поддержка старого формата (миграция с единого true)
+      if (blockTasks === true) {
+        blockTasks = new Array(totalTasks).fill(true);
+      }
 
       // Если данные сбросились или их не было - создаем чистый массив
       if (!Array.isArray(blockTasks) || blockTasks.length !== totalTasks) {
