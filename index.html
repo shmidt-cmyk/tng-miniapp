@@ -292,34 +292,43 @@
     }
 
     async function toggleTask(internIdx, blockIndex, taskIndex, isChecked) {
-      const intern = internsData[internIdx];
-      if (!intern) return;
+  const intern = internsData[internIdx];
+  if (!intern) return;
 
-      if (!intern.checkboxes) intern.checkboxes = {};
-      const totalTasks = BLOCKS[blockIndex - 1].tasks.length;
-      let blockTasks = intern.checkboxes['block_' + blockIndex];
+  if (!intern.checkboxes) intern.checkboxes = {};
+  const totalTasks = BLOCKS[blockIndex - 1].tasks.length;
+  let blockTasks = intern.checkboxes['block_' + blockIndex];
+  
+  if (blockTasks === true) {
+    blockTasks = new Array(totalTasks).fill(true);
+  }
+  if (!Array.isArray(blockTasks) || blockTasks.length !== totalTasks) {
+    blockTasks = new Array(totalTasks).fill(false);
+  }
 
-      if (blockTasks === true) {
-        blockTasks = new Array(totalTasks).fill(true);
-      }
-      if (!Array.isArray(blockTasks) || blockTasks.length !== totalTasks) {
-        blockTasks = new Array(totalTasks).fill(false);
-      }
+  // Обновляем состояние в памяти
+  blockTasks[taskIndex] = isChecked;
+  intern.checkboxes['block_' + blockIndex] = blockTasks;
 
-      blockTasks[taskIndex] = isChecked;
-      intern.checkboxes['block_' + blockIndex] = blockTasks;
+  // 🔥 ИСПРАВЛЕНИЕ: Перерисовываем интерфейс, чтобы обновился счетчик тасков
+  renderInterns();
 
-      await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'toggleTask',
-          name: intern.name,
-          blockIndex: blockIndex,
-          tasksState: blockTasks,
-          totalTasks: totalTasks
-        })
-      });
-    }
+  // Отправляем данные на сервер
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'toggleTask',
+        name: intern.name,
+        blockIndex: blockIndex,
+        tasksState: blockTasks,
+        totalTasks: totalTasks
+      })
+    });
+  } catch(e) {
+    console.error("Ошибка при сохранении галочки: ", e);
+  }
+}
 
     async function sendComment(internIdx, blockIndex) {
       const intern = internsData[internIdx];
