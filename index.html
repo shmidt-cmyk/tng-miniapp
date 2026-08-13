@@ -140,7 +140,6 @@
   </div>
 
   <script>
-    // ИСПРАВЛЕННАЯ ССЫЛКА (Добавлена закрывающая кавычка и единое имя API_URL)
     const API_URL = 'https://script.google.com/macros/s/AKfycbz_937-0mAvf5VNpqS0UJC3HKhBLLxuTOkq2bXV-LphOhpRAHlCh2uO-C6_UnBHsngh/exec';
 
     // Telegram Web App
@@ -148,24 +147,23 @@
     if (tg) tg.expand();
     const currentUser = tg?.initDataUnsafe?.user ? `${tg.initDataUnsafe.user.first_name} (${tg.initDataUnsafe.user.username || 'Менеджер'})` : 'Менеджер';
 
-    // 9 фиксированных блоков
+    // Новые 9 блоков из ТЗ
     const BLOCKS = [
-      { title: "Блок 1: Введение", tasks: ["Помощь в открытии и разбор чеков", "Разбор посуды кухни и бара", "Смена 4–6 часов"] },
-      { title: "Блок 2: Сервис", tasks: ["Стандарты сервировки", "Изучение меню кухни", "Работа с кассой"] },
-      { title: "Блок 3: Бар", tasks: ["Технологические карты напитков", "Инвентаризация бара", "Приготовление классических коктейлей"] },
-      { title: "Блок 4: Обслуживание", tasks: ["Этикет общения с гостями", "Знание нумерации столов", "Работа с возражениями"] },
-      { title: "Блок 5: Касса & Учет", tasks: ["Закрытие смены", "Инкассация", "Отчетность"] },
-      { title: "Блок 6: Стандарты TNG", tasks: ["История бренда TNG", "Корпоративная культура", "Внутренний распорядок"] },
-      { title: "Блок 7: Аттестация 1", tasks: ["Тест по меню", "Практический экзамен на баре"] },
-      { title: "Блок 8: Аттестация 2", tasks: ["Теневая смена", "Самостоятельная смена с наставником"] },
-      { title: "Блок 9: Финал", tasks: ["Финальное собеседование", "Выход в основной штат"] }
+      { title: "Блок 1", tasks: ["Помощь в открытии и разбор чек-листа открытия, нумерация столов", "Разбор посуды кухни и бара. Знакомство с чатом по обучению", "Работа в зале и разбор всех станций", "Смена 4-6 часов", "Домашнее задание: выучить нумерацию, посуду, чек-листы"] },
+      { title: "Блок 2", tasks: ["Проверка знаний первого блока", "Стандарты сервировки и обслуживания. Типы гостей", "Алгоритм действий. Знакомство с Restoplace", "Практика встречи и общения с гостями", "Смена 6 часов, разбор меню кухни", "Чек-лист закрытия стола", "Домашнее задание: алгоритм обслуживания, сервировка, выход из конфликтов"] },
+      { title: "Блок 3", tasks: ["Проверка знаний. Разбор депозитов и их учет", "Работа полностью в помощь официанту", "Разбор меню кухни (закуски, салаты, десерты)", "Смена 12 часов", "Домашнее задание: закуски, салаты, десерты"] },
+      { title: "Блок 4", tasks: ["Проверка знаний", "Стажировка на кухне 2-3 часа (в момент заказов)", "Разбор меню кухни (роллы, суши, гунканы)", "Работа в зале", "Смена 12 часов", "Домашнее задание: роллы, суши, гунканы"] },
+      { title: "Блок 5", tasks: ["Проверка знаний", "Стажировка на кухне 2-3 часа. Работа в зале", "Разбор меню кухни (горячее, гарниры, супы, соусы)", "Работа с ПКО", "Смена 12 часов", "Домашнее задание: горячее, гарниры, супы, соусы"] },
+      { title: "Блок 6", tasks: ["Сдача меню кухни шеф-повару", "Стажировка на баре 2-3 часа", "Работа в зале. Разбор всего бара", "Смена 12 часов", "Домашнее задание: весь бар"] },
+      { title: "Блок 7", tasks: ["Проверка знаний", "Гастропары, повышение продаж, таблица продуктов и аллергенов", "Изучение меню бара (коктейли, кордиалы)", "Работа в зале под руководством старшего официанта", "Смена 12 часов", "Домашнее задание: коктейли, кордиалы"] },
+      { title: "Блок 8", tasks: ["Проверка аллергенов, коктейлей и кордиалов", "Винная карта. Подача вина, работа с декантером. Крепкий алкоголь", "Смена 12 часов", "Самостоятельное принятие заказа под присмотром"] },
+      { title: "Блок 9", tasks: ["Сдача меню бара бар-менеджеру", "Изучение меню ланчей и завтраков", "Смена 12 часов. Подготовка к контрольному обслуживанию (КО)", "Домашнее задание: завтраки, ланчи, подготовка к КО", "Прохождение контрольного обслуживания"] }
     ];
 
     let internsData = [];
 
     async function loadData() {
       try {
-        // Добавлен сброс кэша (?t=время), чтобы всегда грузились свежие данные
         const res = await fetch(API_URL + "?t=" + new Date().getTime());
         const json = await res.json();
         internsData = json.interns || [];
@@ -207,18 +205,25 @@
             <div class="card-body">
               ${BLOCKS.map((block, bIdx) => {
                 const bNum = bIdx + 1;
-                const isChecked = intern.checkboxes['block_' + bNum];
+                // Получаем массив состояний галочек
+                const blockTasksState = (intern.checkboxes && Array.isArray(intern.checkboxes['block_' + bNum])) 
+                  ? intern.checkboxes['block_' + bNum] 
+                  : [];
                 const comments = intern.comments['block_' + bNum] || [];
+                
                 return `
                   <div class="block-section">
                     <div class="block-title">${block.title}</div>
-                    ${block.tasks.map((taskText, tIdx) => `
-                      <label class="task-item" onclick="toggleCheckbox('${intern.name}', ${bNum}, this)">
-                        <input type="checkbox" ${isChecked ? 'checked' : ''}>
-                        <div class="custom-checkbox"></div>
-                        <span class="task-text">${taskText}</span>
-                      </label>
-                    `).join('')}
+                    ${block.tasks.map((taskText, tIdx) => {
+                      const isChecked = !!blockTasksState[tIdx];
+                      return `
+                        <label class="task-item">
+                          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleTask('${intern.name}', ${bNum}, ${tIdx}, this.checked)">
+                          <div class="custom-checkbox"></div>
+                          <span class="task-text">${taskText}</span>
+                        </label>
+                      `;
+                    }).join('')}
                     <div class="comments-section">
                       <div class="comments-list">
                         ${comments.map(c => `<div class="comment-item"><span class="comment-author">[${c.time}] ${c.author}:</span> ${c.text}</div>`).join('')}
@@ -243,12 +248,34 @@
       document.getElementById(`card-${idx}`).classList.toggle('open');
     }
 
-    async function toggleCheckbox(name, blockIndex, labelEl) {
-      const input = labelEl.querySelector('input');
-      const val = input.checked;
+    // Новая функция сохранения каждого таска отдельно
+    async function toggleTask(name, blockIndex, taskIndex, isChecked) {
+      const intern = internsData.find(i => i.name === name);
+      if (!intern) return;
+
+      if (!intern.checkboxes) intern.checkboxes = {};
+
+      const totalTasks = BLOCKS[blockIndex - 1].tasks.length;
+      let blockTasks = intern.checkboxes['block_' + blockIndex];
+
+      // Если данные сбросились или их не было - создаем чистый массив
+      if (!Array.isArray(blockTasks) || blockTasks.length !== totalTasks) {
+        blockTasks = new Array(totalTasks).fill(false);
+      }
+
+      // Обновляем статус конкретного таска
+      blockTasks[taskIndex] = isChecked;
+      intern.checkboxes['block_' + blockIndex] = blockTasks;
+
+      // Отправляем массив на сервер
       await fetch(API_URL, {
         method: 'POST',
-        body: JSON.stringify({ action: 'toggleCheckbox', name, blockIndex, value: val })
+        body: JSON.stringify({
+          action: 'toggleTask',
+          name: name,
+          blockIndex: blockIndex,
+          tasksState: blockTasks
+        })
       });
     }
 
